@@ -2,7 +2,7 @@
 import pika
 import os
 
-url = 'amqps://qyjjuarn:umOghA8igjcidH9vHmQdKJeFx-CNhd5K@chimpanzee.rmq.cloudamqp.com/qyjjuarn'
+url = 'INSIRA_URL_AMQP_AQUI'
 
 params = pika.URLParameters(url)
 connection = pika.BlockingConnection(params)
