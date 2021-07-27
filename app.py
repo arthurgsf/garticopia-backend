@@ -17,6 +17,5 @@ def callback(ch, method, properties, body):
 channel.basic_consume('hello', callback, auto_ack=True)
 
 print(' [*] Waiting for messages:')
-
 channel.start_consuming()
 connection.close()
