@@ -22,48 +22,48 @@ from room import Room
 def hash_data(data: str)->str:
 	""" hash a string data.
 
-    Aplica um hash na data string passada utilizando
-    o algoritimo sha256, retornando um string com
-    o hash em hexadecimal.
+	Aplica um hash na data string passada utilizando
+	o algoritimo sha256, retornando um string com
+	o hash em hexadecimal.
 
-    Args:
-        data (str): Data a ser hash.
+	Args:
+		data (str): Data a ser hash.
 
-    Returns:
-        str: hash da data em hexadecimal.
+	Returns:
+		str: hash da data em hexadecimal.
 
-    """
-    hash_ = hashlib.sha256()
+	"""
+	hash_ = hashlib.sha256()
 	hash_.update(data.encode())
 	return hash_.hexdigest()
 
 class Server:
 	"""Gartic Server.
 
-    Servidor do Gartic Responsavel por se comunicar com o bando de dados para cadastrar
-    e fazer o login dos usuarios; Gerenciar as Salas abertas; Executar o ciclo de vida
-    das partidas das salas abertas. O Servidor trata as mensagens de requisicao dos
-    clientes, e se comunica com os clientes atraves de mensagens JSON para gerenciar
-    o ciclo de vida de uma partida.
+	Servidor do Gartic Responsavel por se comunicar com o bando de dados para cadastrar
+	e fazer o login dos usuarios; Gerenciar as Salas abertas; Executar o ciclo de vida
+	das partidas das salas abertas. O Servidor trata as mensagens de requisicao dos
+	clientes, e se comunica com os clientes atraves de mensagens JSON para gerenciar
+	o ciclo de vida de uma partida.
 
-    Attributes:
-        url (str): url do broker do RabbitMQ.
-        credentials (dict): Credenciais do banco de dados.
-        mq_connection (:obj:): conexao com o broker do RabbitMQ.
-        db_connection (:obj:): conexao com o Banco de Dados.
-        channel (:obj:): canal de conexao com o RabbitMQ.
-        rooms (list[:obj:]): vetor de Salas abertas
-    """
+	Attributes:
+		url (str): url do broker do RabbitMQ.
+		credentials (dict): Credenciais do banco de dados.
+		mq_connection (:obj:): conexao com o broker do RabbitMQ.
+		db_connection (:obj:): conexao com o Banco de Dados.
+		channel (:obj:): canal de conexao com o RabbitMQ.
+		rooms (list[:obj:]): vetor de Salas abertas
+	"""
 
 	# url do servidor (usar localhost em caso de falha)
 	url = os.environ.get('CLOUDAMQP_URL', 'amqp://guest:guest@localhost:5672')
 	# credenciais do banco de dados
 	credentials = {
-		"host": "",
-		"dbname": "",
-		"user": "",
-		"port": 0,
-		"password": ""
+		"host": "ec2-44-197-40-76.compute-1.amazonaws.com",
+		"dbname": "degfb5n0uhscf9",
+		"user": "zulvtfakhqhkof",
+		"port": 5432,
+		"password": "5504013551534559e218e526643e5368920fed660d599543421444190363997b"
 	}
 
 	def __init__(self, *args, **kwargs):
@@ -91,8 +91,9 @@ class Server:
 		logging.info("Closing Database Connection")
 		self.db_connection.close()
 
-
 	def run(self):
+		""" Inicia o Servidor
+		"""
 		logging.info("Server Online")
 		self.channel.start_consuming()
 		
@@ -140,13 +141,13 @@ class Server:
 		ou o email nao estiver cadastrado no banco de dados; ou a senha e/ou
 		email nao sao validos.
 
-        Args:
-            channel: pika.Channel.
-            method: pika.Method.
-            properties: pika.BasicProperties.
-            body: byte
+		Args:
+			channel: pika.Channel.
+			method: pika.Method.
+			properties: pika.BasicProperties.
+			body: byte
 
-        """
+		"""
 
 		# try to parse the message
 		try:
@@ -234,13 +235,13 @@ class Server:
 		passada nao for um JSON; ou nao for equivalente a SignUpRequest.json;
 		ou o email ja esta cadastrado no banco de dados;
 
-        Args:
-            channel: pika.Channel.
-            method: pika.Method.
-            properties: pika.BasicProperties.
-            body: byte
+		Args:
+			channel: pika.Channel.
+			method: pika.Method.
+			properties: pika.BasicProperties.
+			body: byte
 
-        """
+		"""
 
 		# try to parse the message
 		try:
@@ -295,8 +296,72 @@ class Server:
 		return	
 
 	def create_room(self, channel, method, properties, body):
-		print("[CREATE ROOM] message:")
-		print(body)
+		"""Criar Sala Method.
+
+		Callback method chamado quando uma mensagem e recebida na fila
+		do topico 'user' com chave de roteamento 'createRoom'. Recebe um json
+		equiavelente ao CreateRoomRequest.json com os dados do login. Retorna
+		um json equivalente ao CreateRoomResponse.json com os dados da resposta.
+		Em caso de falha, retorna um json equivalente a GeneralResponse.json
+		com os dados da falha. A falha pode acontecer caso a mensagem 
+		passada nao for um JSON; ou nao for equivalente a LoginRequest.json;
+		ou o email nao estiver cadastrado no banco de dados; ou a senha e/ou
+		email nao sao validos.
+
+		Args:
+			channel (pika.Channel): Canal de Comunicacao.
+			method (pika.Method): method utilizado.
+			properties (pika.BasicProperties): propriedades da mensagem.
+			body (byte): bytes do json da mensagem 
+		"""
+
+		# try to parse the message
+		try:
+			data = json.loads(body)
+		except Exception as err:
+			# envia uma mensagem de erro
+			message = json.dumps({"request": "createRoom", "success": False, "motive": str(err)}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("Create Room Operation Error on Parse: " + str(err))
+			return
+
+		# verifica se a mensagem possui os campos corretos
+		if ("roomName" not in data.keys()) or ("roomCategory" not in data.keys()) or ("userToken" not in data.keys()):
+			# envia mensagem com campos errados 
+			message = json.dumps({"request": "login", "success": False, "motive": "Fields Missing on the Request"}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("Login Operation Error on Parse: Invalid Fields")
+			return
+			
+		# valida nome
+
+		# valida categoria
+
+		# valida token
+		if data["userToken"] < 0:
+			# envia mensagem com campos errados 
+			message = json.dumps({"request": "login", "success": False, "motive": "Invalid Authentication Token"}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("Login Operation Error on Parse: Invalid Authentication Token")
+			return
+
+		# Cria Sala e adiciona na lista de Salas
+		new_room = Room(data["roomName"], data["roomCategory"])
+		self.rooms.append(new_room)
+
+		# envia resposta
+		message = json.dumps({"roomID": new_room.id}) 
+		channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+		channel.basic_ack(delivery_tag=method.delivery_tag)
+		# log sign up
+		logging.debug("Create Room  Operation: {roomName: "+str(data["roomName"])+", roomCategory: "+str(data["roomCategory"])+", roomID: "+str(new_room.id)+"}")
+		return	
 
 	def enter_room(self, channel, method, properties, body):
 		print("[MAKE ROOM] message:")
