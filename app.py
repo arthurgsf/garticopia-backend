@@ -59,11 +59,11 @@ class Server:
 	url = os.environ.get('CLOUDAMQP_URL', 'amqp://guest:guest@localhost:5672')
 	# credenciais do banco de dados
 	credentials = {
-		"host": "ec2-44-197-40-76.compute-1.amazonaws.com",
-		"dbname": "degfb5n0uhscf9",
-		"user": "zulvtfakhqhkof",
-		"port": 5432,
-		"password": "5504013551534559e218e526643e5368920fed660d599543421444190363997b"
+		"host": "",
+		"dbname": "",
+		"user": "",
+		"port": 0,
+		"password": ""
 	}
 
 	def __init__(self, *args, **kwargs):
@@ -108,15 +108,15 @@ class Server:
 		create_room_queue = self.channel.queue_declare("", exclusive=True)
 		enter_room_queue = self.channel.queue_declare("", exclusive=True)
 		exit_room_queue = self.channel.queue_declare("", exclusive=True)
-		show_room_queue = self.channel.queue_declare("", exclusive=True)
+		get_room_queue = self.channel.queue_declare("", exclusive=True)
 
 		# bind filas para o topico de acordo com cada chave de roteamento
 		self.channel.queue_bind(exchange='user', queue=login_queue.method.queue, routing_key="login")
 		self.channel.queue_bind(exchange='user', queue=signup_queue.method.queue, routing_key="signup")
 		self.channel.queue_bind(exchange='user', queue=create_room_queue.method.queue, routing_key="createRoom")
 		self.channel.queue_bind(exchange='user', queue=enter_room_queue.method.queue, routing_key="enterRoom")
-		self.channel.queue_bind(exchange='user', queue=enter_room_queue.method.queue, routing_key="exitRoom")
-		self.channel.queue_bind(exchange='user', queue=enter_room_queue.method.queue, routing_key="showRooms")
+		self.channel.queue_bind(exchange='user', queue=exit_room_queue.method.queue, routing_key="exitRoom")
+		self.channel.queue_bind(exchange='user', queue=get_room_queue.method.queue, routing_key="getRooms")
 		
 		# bind cada chave de roteamento para o method
 		self.channel.basic_consume(queue=login_queue.method.queue, on_message_callback=self.login, auto_ack=False)
@@ -124,7 +124,7 @@ class Server:
 		self.channel.basic_consume(queue=create_room_queue.method.queue, on_message_callback=self.create_room, auto_ack=False)
 		self.channel.basic_consume(queue=enter_room_queue.method.queue, on_message_callback=self.enter_room, auto_ack=False)
 		self.channel.basic_consume(queue=exit_room_queue.method.queue, on_message_callback=self.enter_room, auto_ack=False)
-		self.channel.basic_consume(queue=show_room_queue.method.queue, on_message_callback=self.enter_room, auto_ack=False)
+		self.channel.basic_consume(queue=get_room_queue.method.queue, on_message_callback=self.get_room, auto_ack=False)
 
 	#============================= Consume Methods =============================#
 
@@ -304,9 +304,8 @@ class Server:
 		um json equivalente ao CreateRoomResponse.json com os dados da resposta.
 		Em caso de falha, retorna um json equivalente a GeneralResponse.json
 		com os dados da falha. A falha pode acontecer caso a mensagem 
-		passada nao for um JSON; ou nao for equivalente a LoginRequest.json;
-		ou o email nao estiver cadastrado no banco de dados; ou a senha e/ou
-		email nao sao validos.
+		passada nao for um JSON; ou nao for equivalente a CreateRoomRequest.json;
+		ou o token de autenticacao do usuario for invalido
 
 		Args:
 			channel (pika.Channel): Canal de Comunicacao.
@@ -336,7 +335,7 @@ class Server:
 			# log erro
 			logging.warning("Login Operation Error on Parse: Invalid Fields")
 			return
-			
+
 		# valida nome
 
 		# valida categoria
@@ -362,6 +361,70 @@ class Server:
 		# log sign up
 		logging.debug("Create Room  Operation: {roomName: "+str(data["roomName"])+", roomCategory: "+str(data["roomCategory"])+", roomID: "+str(new_room.id)+"}")
 		return	
+
+	def get_room(self, channel, method, properties, body):
+		"""Criar Sala Method.
+
+		Callback method chamado quando uma mensagem e recebida na fila
+		do topico 'user' com chave de roteamento 'getRooms'. Recebe um json
+		equiavelente ao GetRoomsRequest.json com os dados do login. Retorna
+		um json equivalente ao GetRoomsResponse.json com os dados da resposta.
+		Em caso de falha, retorna um json equivalente a GeneralResponse.json
+		com os dados da falha. A falha pode acontecer caso a mensagem 
+		passada nao for um JSON; ou nao for equivalente a GetRoomsRequest.json;
+		ou o token de validacao do usuario for invalido.
+
+		Args:
+			channel (pika.Channel): Canal de Comunicacao.
+			method (pika.Method): method utilizado.
+			properties (pika.BasicProperties): propriedades da mensagem.
+			body (byte): bytes do json da mensagem 
+		"""
+
+		# try to parse the message
+		try:
+			data = json.loads(body)
+		except Exception as err:
+			# envia uma mensagem de erro
+			message = json.dumps({"request": "createRoom", "success": False, "motive": str(err)}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("Create Room Operation Error on Parse: " + str(err))
+			return
+
+		# verifica se a mensagem possui os campos corretos
+		if ("userToken" not in data.keys()):
+			# envia mensagem com campos errados 
+			message = json.dumps({"request": "login", "success": False, "motive": "Fields Missing on the Request"}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("Login Operation Error on Parse: Invalid Fields")
+			return
+			
+		# valida token
+		if data["userToken"] < 0:
+			# envia mensagem com campos errados 
+			message = json.dumps({"request": "login", "success": False, "motive": "Invalid Authentication Token"}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("Login Operation Error on Parse: Invalid Authentication Token")
+			return
+
+		# obtem salas abertas
+		rooms = [{"roomID": room.id, "roomName": room.name, "roomPlayers": len(room.players)} for room in self.rooms if len(room.players) < 10]
+
+		# envia resposta
+		message = json.dumps({"rooms": rooms}) 
+		channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+		channel.basic_ack(delivery_tag=method.delivery_tag)
+
+		# log get room
+		logging.debug("Get Room Operation: ["+",".join([str(room["roomID"]) for room in rooms])+"]")
+		return	
+
 
 	def enter_room(self, channel, method, properties, body):
 		print("[MAKE ROOM] message:")
