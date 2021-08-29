@@ -11,7 +11,17 @@ import psycopg2
 import os
 # messages json module
 import json
+# hash module
+import hashlib
+# unique id module
+import uuid
 
+def hash_data(data: str):
+	""" Encrypt a data
+	"""
+	hash_ = hashlib.sha256()
+	hash_.update(data.encode())
+	return hash_.hexdigest()
 
 class Server:
 	"""
@@ -22,11 +32,11 @@ class Server:
 	url = os.environ.get('CLOUDAMQP_URL', 'amqp://guest:guest@localhost:5672')
 	# credenciais do banco de dados
 	credentials = {
-		"host": "",
-		"dbname": "",
-		"user": "",
-		"port": 0,
-		"password": ""
+		"host": "ec2-44-197-40-76.compute-1.amazonaws.com",
+		"dbname": "degfb5n0uhscf9",
+		"user": "zulvtfakhqhkof",
+		"port": 5432,
+		"password": "5504013551534559e218e526643e5368920fed660d599543421444190363997b"
 	}
 
 	def __init__(self, *args, **kwargs):
@@ -95,28 +105,53 @@ class Server:
 		# try to parse the message
 		try:
 			data = json.loads(body)
-		except:
-			logging.warning("Login Operation Error: " + str(err))
+		except Exception as err:
+			# envia uma mensagem de erro
+			message = json.dumps({"request": "signup", "success": False, "motive": str(err)}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("SignUp Operation Error on Parse: " + str(err))
 			return
 
 		# verifica se a mensagem possui os campos corretos
-		if ("userEmail" not in data.keys()) or ("userPassword" not in data.keys()):
+		if ("userEmail" not in data.keys()) or ("userPassword" not in data.keys()) or ("userName" not in data.keys()):
 			# envia mensagem com campos errados
-			logging.warning("Login Operation Error: Invalid Fields")
+			message = json.dumps({"request": "signup", "success": False, "motive": "Fields Missing on the Request"}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("SignUp Operation Error on Parse: Invalid Fields")
 			return
 		
-		# valida login
-		logging.debug(" Login Operation: {userEmail: "+str(data["userEmail"])+", userPassword: "+'*'*len(data["userPassword"])+"}")
-		return
-			
-		# com os dados do login, faz a busca no banco de dados para verifiar se o login e valido
-		cursor = self.db_connection.cursor()
-		cursor.execute("SELECT * FROM pg_catalog.pg_tables;")
-		for result in cursor.fetchall():
-			if result[0] == "public":
-				print(result)
-		cursor.close()
-		# criar um token
+		# valida signup
+		try:
+			# sql para inserir novo usuario
+			sql = "SELECT id FROM users WHERE email=%s AND password=%s;"
+			# obtem cursor e executa sql
+			cursor = self.db_connection.cursor()
+			cursor.execute(sql, (data["userEmail"], data["userPassword"]))
+			# get result
+
+			# commit os valores inseridos e fecha o cursor
+			self.db_connection.commit()
+			cursor.close()
+		except Exception as err:
+			# envia uma mensagem de erro
+			message = json.dumps({"request": "signup", "success": False, "motive": str(err)}) 
+			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+			channel.basic_ack(delivery_tag=method.delivery_tag)
+			# log erro
+			logging.warning("SignUp Operation Error on SQL Operation: "+str(err))
+			return
+
+		# envia resposta
+		message = json.dumps({"request": "signup", "success": True}) 
+		channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+		channel.basic_ack(delivery_tag=method.delivery_tag)
+		# log sign up
+		logging.debug(" SignUp Operation: {userName: "+str(data["userName"])+", userEmail: "+str(data["userEmail"])+", userPassword: "+'*'*len(data["userPassword"])+"}")
+		return	
 
 	def signup(self, channel, method, properties, body):
 		""" Processa uma mensagem de login.
@@ -146,11 +181,14 @@ class Server:
 		
 		# valida signup
 		try:
+			# encrypt the password
+			salt = uuid.uuid4().hex
+			hash_password = hash_data(data["userPassword"]+salt)
 			# sql para inserir novo usuario
-			sql = "INSERT INTO users(name, email, password) VALUES (%s, %s, %s);"
+			sql = "INSERT INTO users(name, email, password, salt) VALUES (%s, %s, %s, %s);"
 			# obtem cursor e executa sql
 			cursor = self.db_connection.cursor()
-			cursor.execute(sql, (data["userName"], data["userEmail"], data["userPassword"]))
+			cursor.execute(sql, (data["userName"], data["userEmail"], hash_password, salt))
 			# commit os valores inseridos e fecha o cursor
 			self.db_connection.commit()
 			cursor.close()
