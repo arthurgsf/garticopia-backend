@@ -16,31 +16,59 @@ import hashlib
 # unique id module
 import uuid
 
-def hash_data(data: str):
-	""" Encrypt a data
-	"""
-	hash_ = hashlib.sha256()
+# import own modules
+from room import Room
+
+def hash_data(data: str)->str:
+	""" hash a string data.
+
+    Aplica um hash na data string passada utilizando
+    o algoritimo sha256, retornando um string com
+    o hash em hexadecimal.
+
+    Args:
+        data (str): Data a ser hash.
+
+    Returns:
+        str: hash da data em hexadecimal.
+
+    """
+    hash_ = hashlib.sha256()
 	hash_.update(data.encode())
 	return hash_.hexdigest()
 
 class Server:
-	"""
-	Gartic Server
-	"""
+	"""Gartic Server.
+
+    Servidor do Gartic Responsavel por se comunicar com o bando de dados para cadastrar
+    e fazer o login dos usuarios; Gerenciar as Salas abertas; Executar o ciclo de vida
+    das partidas das salas abertas. O Servidor trata as mensagens de requisicao dos
+    clientes, e se comunica com os clientes atraves de mensagens JSON para gerenciar
+    o ciclo de vida de uma partida.
+
+    Attributes:
+        url (str): url do broker do RabbitMQ.
+        credentials (dict): Credenciais do banco de dados.
+        mq_connection (:obj:): conexao com o broker do RabbitMQ.
+        db_connection (:obj:): conexao com o Banco de Dados.
+        channel (:obj:): canal de conexao com o RabbitMQ.
+        rooms (list[:obj:]): vetor de Salas abertas
+    """
 
 	# url do servidor (usar localhost em caso de falha)
 	url = os.environ.get('CLOUDAMQP_URL', 'amqp://guest:guest@localhost:5672')
 	# credenciais do banco de dados
 	credentials = {
-		"host": "ec2-44-197-40-76.compute-1.amazonaws.com",
-		"dbname": "degfb5n0uhscf9",
-		"user": "zulvtfakhqhkof",
-		"port": 5432,
-		"password": "5504013551534559e218e526643e5368920fed660d599543421444190363997b"
+		"host": "",
+		"dbname": "",
+		"user": "",
+		"port": 0,
+		"password": ""
 	}
 
 	def __init__(self, *args, **kwargs):
 		logging.info("Starting Server.")
+		self.rooms = []
 		
 		# cria conexao com o banco de dados 
 		logging.info("Connecting to DataBase.")
@@ -52,6 +80,7 @@ class Server:
 		
 		logging.debug("Initialing Communiction Settings.")
 		self.channel = self.mq_connection.channel()
+
 		# inicia topicos
 		self.init_user_topic()
 
@@ -99,8 +128,25 @@ class Server:
 	#============================= Consume Methods =============================#
 
 	def login(self, channel, method, properties, body):
-		""" Processa uma mensagem de login.
-		"""
+		"""Login Method.
+
+		Callback method chamado quando uma mensagem e recebida na fila
+		do topico 'user' com chave de roteamento 'login'. Recebe um json
+		equiavelente ao LoginRequest.json com os dados do login. Retorna
+		um json equivalente ao LoginResponse.json com os dados da resposta.
+		Em caso de falha, retorna um json equivalente a GeneralResponse.json
+		com os dados da falha. A falha pode acontecer caso a mensagem 
+		passada nao for um JSON; ou nao for equivalente a LoginRequest.json;
+		ou o email nao estiver cadastrado no banco de dados; ou a senha e/ou
+		email nao sao validos.
+
+        Args:
+            channel: pika.Channel.
+            method: pika.Method.
+            properties: pika.BasicProperties.
+            body: byte
+
+        """
 
 		# try to parse the message
 		try:
@@ -177,8 +223,24 @@ class Server:
 		return	
 
 	def signup(self, channel, method, properties, body):
-		""" Processa uma mensagem de login.
-		"""
+		""" SignUp Method.
+		
+		Callback method chamado quando uma mensagem e recebida na fila
+		do topico 'user' com chave de roteamento 'signup'. Recebe um json
+		equiavelente ao SignUpRequest.json com os dados do login. Retorna
+		um json equivalente ao GeneralResponse.json notificando o sucesso.
+		Em caso de falha, retorna um json equivalente a GeneralResponse.json
+		com os dados da falha. A falha pode acontecer caso a mensagem 
+		passada nao for um JSON; ou nao for equivalente a SignUpRequest.json;
+		ou o email ja esta cadastrado no banco de dados;
+
+        Args:
+            channel: pika.Channel.
+            method: pika.Method.
+            properties: pika.BasicProperties.
+            body: byte
+
+        """
 
 		# try to parse the message
 		try:
