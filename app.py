@@ -107,50 +107,73 @@ class Server:
 			data = json.loads(body)
 		except Exception as err:
 			# envia uma mensagem de erro
-			message = json.dumps({"request": "signup", "success": False, "motive": str(err)}) 
+			message = json.dumps({"request": "login", "success": False, "motive": str(err)}) 
 			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
 			channel.basic_ack(delivery_tag=method.delivery_tag)
 			# log erro
-			logging.warning("SignUp Operation Error on Parse: " + str(err))
+			logging.warning("Login Operation Error on Parse: " + str(err))
 			return
 
 		# verifica se a mensagem possui os campos corretos
-		if ("userEmail" not in data.keys()) or ("userPassword" not in data.keys()) or ("userName" not in data.keys()):
+		if ("userEmail" not in data.keys()) or ("userPassword" not in data.keys()):
 			# envia mensagem com campos errados
-			message = json.dumps({"request": "signup", "success": False, "motive": "Fields Missing on the Request"}) 
+			message = json.dumps({"request": "login", "success": False, "motive": "Fields Missing on the Request"}) 
 			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
 			channel.basic_ack(delivery_tag=method.delivery_tag)
 			# log erro
-			logging.warning("SignUp Operation Error on Parse: Invalid Fields")
+			logging.warning("Login Operation Error on Parse: Invalid Fields")
 			return
 		
 		# valida signup
 		try:
 			# sql para inserir novo usuario
-			sql = "SELECT id FROM users WHERE email=%s AND password=%s;"
+			sql = "SELECT id, name, password, salt FROM users WHERE users.email=%s;"
 			# obtem cursor e executa sql
 			cursor = self.db_connection.cursor()
-			cursor.execute(sql, (data["userEmail"], data["userPassword"]))
-			# get result
+			cursor.execute(sql, (data["userEmail"],))
+			
+			# fetch o resultado (deve ser somente um pois cada email e unico, e n tem como ter varios resultados no select)
+			result = cursor.fetchone()
 
+			# se n tiver achado o email passado, avisa o cliente
+			if result is None:
+				# envia mensagem de senha invalida
+				message = json.dumps({"request": "login", "success": False, "motive": "Invalid Email"}) 
+				channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+				channel.basic_ack(delivery_tag=method.delivery_tag)
+				# log erro
+				logging.warning("Login Operation: Invalid Email")
+				return
+			
+			# obtem dados do resultado obtido do banco de dados
+			id_token, name, password, salt = result
+			# valida a senha
+			if hash_data(data["userPassword"]+salt) != password:
+				# envia mensagem de senha invalida
+				message = json.dumps({"request": "login", "success": False, "motive": "Invalid Password or Email Combination"}) 
+				channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
+				channel.basic_ack(delivery_tag=method.delivery_tag)
+				# log erro
+				logging.warning("Login Operation: Invalid Password or Email Combination")
+				return
 			# commit os valores inseridos e fecha o cursor
 			self.db_connection.commit()
 			cursor.close()
 		except Exception as err:
 			# envia uma mensagem de erro
-			message = json.dumps({"request": "signup", "success": False, "motive": str(err)}) 
+			message = json.dumps({"request": "login", "success": False, "motive": str(err)}) 
 			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
 			channel.basic_ack(delivery_tag=method.delivery_tag)
 			# log erro
-			logging.warning("SignUp Operation Error on SQL Operation: "+str(err))
+			logging.error("Login Operation Error on SQL Operation: "+str(err))
 			return
 
 		# envia resposta
-		message = json.dumps({"request": "signup", "success": True}) 
+		message = json.dumps({"userToken": id_token, "userName": name}) 
 		channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
 		channel.basic_ack(delivery_tag=method.delivery_tag)
 		# log sign up
-		logging.debug(" SignUp Operation: {userName: "+str(data["userName"])+", userEmail: "+str(data["userEmail"])+", userPassword: "+'*'*len(data["userPassword"])+"}")
+		logging.debug(" Login Operation: {userEmail: "+str(data["userEmail"])+", userPassword: "+'*'*len(data["userPassword"])+"}")
 		return	
 
 	def signup(self, channel, method, properties, body):
