@@ -4,11 +4,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-const { Pool } = require('node-postgres');
+const { Pool } = require('pg');
 
 const app = express();
 const port = 3333
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 const pool = new Pool({
     user: 'zulvtfakhqhkof',
@@ -18,8 +20,13 @@ const pool = new Pool({
     port: 5432
 });
 
+pool.query('SELECT NOW()', (err, res) => {
+    console.log(err, res)
+    // pool.end()
+})
+
 function generateToken(params = {}) {
-    return jwt.sign(params, authConfig.secret, {
+    return jwt.sign(params, 'garticopia-backend', {
         expiresIn: 86400 //1 dia
     })
 }
@@ -31,11 +38,11 @@ app.get('/', async function (req, res) {
 app.post('/register', async (req, res) => {//registra um usuario
     try {
         const { name, email, password } = req.body;
-        if (await pool.query())
+        if (await pool.query(`SELECT * FROM user WHERE email=${email}`))
             return res.status(400).send({ error: 'Usuário já cadastrado' })
 
-        //cadastro de usuário
-        return res.send('Usuário Cadastrado')
+        const user = await client.query('INSERT INTO user(data) VALUES($1)', [{ name: name, email: email, password: password }])
+        return res.status(200).send(`Usuário cadastrado com Sucesso + ${user}`)
     } catch (err) {
         console.log(err);
         return res.status(400).send({ error: 'Falha ao registrar usuário' })
@@ -45,18 +52,17 @@ app.post('/register', async (req, res) => {//registra um usuario
 app.post('/auth', async (req, res) => {//autentica um usuario
     const { email, password } = req.body;
 
-    const user = await pool.query()
+    const user = await pool.query(`SELECT * FROM user WHERE email=${email}`)
 
     if (!user)
         return res.status(400).send({ error: 'Usuário não encontrado' })
 
-    if (!await bcrypt.compare(senha, user.senha))
+    if (user.senha != password)
         return res.status(400).send({ error: 'Senha invalida' })
 
     user.senha = undefined;
 
     res.send({
-        user,
         token: generateToken({ id: user.id }),
     })
 });
