@@ -1,5 +1,7 @@
 const Ably = require('ably');
 
+
+// Room data
 class Room {
 	id;
 	name;
@@ -15,57 +17,65 @@ class Room {
 	}
 }
 
-class logger  {
-
-	static debug(message) {
-		console.log("[ DEBUG ] "+message)
+// funcoes de log
+var logger = {
+	debug: function(message) {
+		console.log("[ DEBUG ] "+message);
+	},
+	info: function(message) {
+		console.log("[ INFO ] "+message);
+	},
+	warning: function(message) {
+		console.log("[ WARNING ] "+message);
+	},
+	error: function(message) {
+		console.log("[ ERROR ] "+message);
+	},
+	critical: function(message) {
+		console.log("[ CRITICAL ] "+message);
 	}
+};
 
-	static info(message) {
-		console.log("[ INFO ] "+message)
-	}
 
-	static warning(message) {
-		console.log("[ WARNING ] "+message)
-	}
-
-	static error(message) {
-		console.log("[ ERROR ] "+message)
-	}
-
-	static critical(message) {
-		console.log("[ CRITICAL ] "+message)
-	}
+// dados do servidor
+var server = {
+	connection: new Ably.Realtime('b75WYw.5VOWVQ:zxct1AniXY80WGpd'),
+	rooms: [new Room(0, "Test", "Jobs"), new Room(1, "Test2", "Cars"), new Room(2, "Test3", "Jobs")],	
 }
 
-class Server {
+// cria topicos topics
+server.get_rooms_topic = server.connection.channels.get("getRooms");
+server.open_rooms_topic = server.connection.channels.get("openRooms");
 
-	constructor() {
-		// cria conexao com o ably brooker
-		this.connection = new Ably.Realtime('b75WYw.5VOWVQ:zxct1AniXY80WGpd');
-		this.connection.connection.on('connected', this.on_connected);
 
-		this.rooms = [new Room(0, "Test", "Jobs"), new Room(1, "Test2", "Cars"), new Room(2, "Test3", "Jobs")];
-		// init topics
-		this.get_rooms_topic = this.connection.channels.get("getRooms");
-		this.get_rooms_topic.subscribe((message)=>this.get_rooms(message));
-		this.open_rooms_topic = this.connection.channels.get("openRooms");
-	}
+// adiciona callback da connexao
+server.connection.connection.on('connected', function() {
+	logger.info('Server Online');
+});
 
-	//============================= callbacks =============================//
-	
-	on_connected() {
-		logger.info('Server Online');
-	}
 
-	get_rooms(message) {
-		logger.debug('Get Rooms Request Received');
+// validacao de token
+function validateToken(token) {
+	return token > 0;
+}
+
+
+// se inscreve no topic getRooms para ouvir requisicoes\
+server.get_rooms_topic.subscribe(function(message) {
+	// log mesagem recebida
+	logger.debug('Get Rooms Request Received');
+
+	// parse a mensagem
+	message_data = JSON.parse(message.data)
+
+	// verifica se o token e valido
+	if ( validateToken(message_data.userToken) ) {
 		// JSON com os dados das salas abertas
 		var response = {
-			rooms: this.rooms.map( room => ({"roomID": room.id,"roomName": room.name,"roomPlayers": room.players.length}))
+			rooms: server.rooms.map( room => ({"roomID": room.id,"roomName": room.name,"roomPlayers": room.players.length}))
 		}
 		// publica salas abertas no topico openRooms
-		this.open_rooms_topic.publish('Open Rooms', JSON.stringify(response), function(err) {
+		server.open_rooms_topic.publish('Open Rooms', JSON.stringify(response), function(err) {
 			if (err) {
 				logger.error('Could not publish Open Rooms');
 				console.log(err);	
@@ -73,40 +83,9 @@ class Server {
 				logger.debug('Open Rooms published');
 			}
 		});
+	} else {
+		logger.warning("Get Room Request with not authenticated token")
 	}
 
-}
-
-const server = new Server();
-
-/*
-// Obtem principais topicos 
-var room_topic = client.channels.get('getRooms');
-var open_room_topic = client.channels.get('openRooms');
-
-// Connecta no Brooker Ably
-client.connection.on('connected', function() {
-	console.log('[ INFO ] Server Online');
 });
 
-var open_rooms = [{roomName: "Test", roomID: 1}, {roomName: "Test2", roomID: 2}, {roomName: "Test3", roomID: 3}]
-
-// subscribe to
-room_topic.subscribe(function(message) {
-	console.log('[ INFO ] Message Received:');
-	console.log(message);
-	// publish response
-	var response_data = {
-		rooms: open_rooms
-	}
-
-	open_room_topic.publish('OpenRooms', JSON.stringify(response_data), function(err) {
-		if (err) {
-			console.log('[ ERROR ] Could not publish open rooms to topic(openedRooms)');
-			console.log(err);	
-		} else {
-			console.log('[ INFO ] Open Rooms publish to topic(openRooms)')
-		}
-	});
-});
-*/
