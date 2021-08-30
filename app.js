@@ -43,10 +43,11 @@ var server = {
 	rooms: [new Room(0, "Test", "Jobs"), new Room(1, "Test2", "Cars"), new Room(2, "Test3", "Jobs")],	
 }
 
-// cria topicos topics
-server.get_rooms_topic = server.connection.channels.get("getRooms");
-server.open_rooms_topic = server.connection.channels.get("openRooms");
-
+// inicializa topicos
+server.topics = {
+	getRooms: server.connection.channels.get("getRooms"),
+	openRooms: server.connection.channels.get("openRooms"),
+}
 
 // adiciona callback da connexao
 server.connection.connection.on('connected', function() {
@@ -61,7 +62,7 @@ function validateToken(token) {
 
 
 // se inscreve no topic getRooms para ouvir requisicoes\
-server.get_rooms_topic.subscribe(function(message) {
+server.topics.getRooms.subscribe(function(message) {
 	// log mesagem recebida
 	logger.debug('Get Rooms Request Received');
 
@@ -75,7 +76,7 @@ server.get_rooms_topic.subscribe(function(message) {
 			rooms: server.rooms.map( room => ({"roomID": room.id,"roomName": room.name,"roomPlayers": room.players.length}))
 		}
 		// publica salas abertas no topico openRooms
-		server.open_rooms_topic.publish('Open Rooms', JSON.stringify(response), function(err) {
+		server.topics.openRooms.publish('Open Rooms', JSON.stringify(response), function(err) {
 			if (err) {
 				logger.error('Could not publish Open Rooms');
 				console.log(err);	
