@@ -1,191 +1,39 @@
-# logging module
-import logging
-# import RabbitMQ module and change its logging level
-import pika
-#logging.getLogger("pika").setLevel(logging.WARNING)
-logging.getLogger("pika").propagate = False
-
-#postgree module 
-import psycopg2
-# system module
-import os
-# messages json module
-import json
+import paho.mqtt.client as mqtt
+from ably import AblyRest
 
 
-class Server:
-	"""
-	Gartic Server
-	"""
+# The callback for when the client receives a CONNACK response from the server.
+def on_connect(client, userdata, flags, rc):
+    print("Connected with result code "+str(rc))
 
-	# url do servidor (usar localhost em caso de falha)
-	url = os.environ.get('CLOUDAMQP_URL', 'amqp://guest:guest@localhost:5672')
-	# credenciais do banco de dados
-	credentials = {
-		"host": "",
-		"dbname": "",
-		"user": "",
-		"port": 0,
-		"password": ""
-	}
+    # Subscribing in on_connect() means that if we lose the connection and
+    # reconnect then subscriptions will be renewed.
+    client.subscribe("$SYS/#")
 
-	def __init__(self, *args, **kwargs):
-		logging.info("Starting Server.")
-		
-		# cria conexao com o banco de dados 
-		logging.info("Connecting to DataBase.")
-		self.db_connection = psycopg2.connect(**self.credentials)
+# The callback for when a PUBLISH message is received from the server.
+def on_message(client, userdata, msg):
+    print(msg.topic+" "+str(msg.payload))
 
-		# cria conexao e canal ao RabbitMQ
-		logging.info("Connecting to RabbitMQ Broker.")
-		self.mq_connection = pika.BlockingConnection(pika.URLParameters(self.url))
-		
-		logging.debug("Initialing Communiction Settings.")
-		self.channel = self.mq_connection.channel()
-		# inicia topicos
-		self.init_user_topic()
+def main():
+	client = mqtt.Client("b75WYw-2326523") 
+	client.username_pw_set("b75WYw.b2hCtw", "4uGJ5tWUuXuEokN2")
+	client.on_connect = on_connect
+	client.on_message = on_message
 
-	def __del__(self):
-		# fecha connexao com rabbit mq
-		logging.info("Closing RabbitMQ Connection")
-		self.mq_connection.close()
-		logging.info("Closing Database Connection")
-		self.db_connection.close()
+	client.connect("mqtts:mqtt.ably.io", 8883, 30)
 
+	# Blocking call that processes network traffic, dispatches callbacks and
+	# handles reconnecting.
+	# Other loop*() functions are available that give a threaded interface and a
+	# manual interface.
+	client.loop_forever()
 
-	def run(self):
-		logging.info("Server Online")
-		self.channel.start_consuming()
-		
-	#============================= Init Methods =============================#
-
-	def init_user_topic(self):
-		# cria exchangep pro topic usuario
-		self.channel.exchange_declare(exchange='user', exchange_type='topic')
-		# create a queue for each routing key in the topic
-		login_queue = self.channel.queue_declare("", exclusive=True)
-		signup_queue = self.channel.queue_declare("", exclusive=True)
-		create_room_queue = self.channel.queue_declare("", exclusive=True)
-		enter_room_queue = self.channel.queue_declare("", exclusive=True)
-		exit_room_queue = self.channel.queue_declare("", exclusive=True)
-		show_room_queue = self.channel.queue_declare("", exclusive=True)
-
-		# bind filas para o topico de acordo com cada chave de roteamento
-		self.channel.queue_bind(exchange='user', queue=login_queue.method.queue, routing_key="login")
-		self.channel.queue_bind(exchange='user', queue=signup_queue.method.queue, routing_key="signup")
-		self.channel.queue_bind(exchange='user', queue=create_room_queue.method.queue, routing_key="createRoom")
-		self.channel.queue_bind(exchange='user', queue=enter_room_queue.method.queue, routing_key="enterRoom")
-		self.channel.queue_bind(exchange='user', queue=enter_room_queue.method.queue, routing_key="exitRoom")
-		self.channel.queue_bind(exchange='user', queue=enter_room_queue.method.queue, routing_key="showRooms")
-		
-		# bind cada chave de roteamento para o method
-		self.channel.basic_consume(queue=login_queue.method.queue, on_message_callback=self.login, auto_ack=False)
-		self.channel.basic_consume(queue=signup_queue.method.queue, on_message_callback=self.signup, auto_ack=False)
-		self.channel.basic_consume(queue=create_room_queue.method.queue, on_message_callback=self.create_room, auto_ack=False)
-		self.channel.basic_consume(queue=enter_room_queue.method.queue, on_message_callback=self.enter_room, auto_ack=False)
-		self.channel.basic_consume(queue=exit_room_queue.method.queue, on_message_callback=self.enter_room, auto_ack=False)
-		self.channel.basic_consume(queue=show_room_queue.method.queue, on_message_callback=self.enter_room, auto_ack=False)
-
-	#============================= Consume Methods =============================#
-
-	def login(self, channel, method, properties, body):
-		""" Processa uma mensagem de login.
-		"""
-
-		# try to parse the message
-		try:
-			data = json.loads(body)
-		except:
-			logging.warning("Login Operation Error: " + str(err))
-			return
-
-		# verifica se a mensagem possui os campos corretos
-		if ("userEmail" not in data.keys()) or ("userPassword" not in data.keys()):
-			# envia mensagem com campos errados
-			logging.warning("Login Operation Error: Invalid Fields")
-			return
-		
-		# valida login
-		logging.debug(" Login Operation: {userEmail: "+str(data["userEmail"])+", userPassword: "+'*'*len(data["userPassword"])+"}")
-		return
-			
-		# com os dados do login, faz a busca no banco de dados para verifiar se o login e valido
-		cursor = self.db_connection.cursor()
-		cursor.execute("SELECT * FROM pg_catalog.pg_tables;")
-		for result in cursor.fetchall():
-			if result[0] == "public":
-				print(result)
-		cursor.close()
-		# criar um token
-
-	def signup(self, channel, method, properties, body):
-		""" Processa uma mensagem de login.
-		"""
-
-		# try to parse the message
-		try:
-			data = json.loads(body)
-		except Exception as err:
-			# envia uma mensagem de erro
-			message = json.dumps({"request": "signup", "success": False, "motive": str(err)}) 
-			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
-			channel.basic_ack(delivery_tag=method.delivery_tag)
-			# log erro
-			logging.warning("SignUp Operation Error on Parse: " + str(err))
-			return
-
-		# verifica se a mensagem possui os campos corretos
-		if ("userEmail" not in data.keys()) or ("userPassword" not in data.keys()) or ("userName" not in data.keys()):
-			# envia mensagem com campos errados
-			message = json.dumps({"request": "signup", "success": False, "motive": "Fields Missing on the Request"}) 
-			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
-			channel.basic_ack(delivery_tag=method.delivery_tag)
-			# log erro
-			logging.warning("SignUp Operation Error on Parse: Invalid Fields")
-			return
-		
-		# valida signup
-		try:
-			# sql para inserir novo usuario
-			sql = "INSERT INTO users(name, email, password) VALUES (%s, %s, %s);"
-			# obtem cursor e executa sql
-			cursor = self.db_connection.cursor()
-			cursor.execute(sql, (data["userName"], data["userEmail"], data["userPassword"]))
-			# commit os valores inseridos e fecha o cursor
-			self.db_connection.commit()
-			cursor.close()
-		except Exception as err:
-			# envia uma mensagem de erro
-			message = json.dumps({"request": "signup", "success": False, "motive": str(err)}) 
-			channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
-			channel.basic_ack(delivery_tag=method.delivery_tag)
-			# log erro
-			logging.warning("SignUp Operation Error on SQL Operation: "+str(err))
-			return
-
-		# envia resposta
-		message = json.dumps({"request": "signup", "success": True}) 
-		channel.basic_publish(exchange="", routing_key=properties.reply_to, body=message, properties=pika.BasicProperties(correlation_id=properties.correlation_id)) 
-		channel.basic_ack(delivery_tag=method.delivery_tag)
-		# log sign up
-		logging.debug(" SignUp Operation: {userName: "+str(data["userName"])+", userEmail: "+str(data["userEmail"])+", userPassword: "+'*'*len(data["userPassword"])+"}")
-		return	
-
-	def create_room(self, channel, method, properties, body):
-		print("[CREATE ROOM] message:")
-		print(body)
-
-	def enter_room(self, channel, method, properties, body):
-		print("[MAKE ROOM] message:")
-		print(body)
+def test():
+	client = AblyRest("b75WYw.b2hCtw:4uGJ5tWUuXuEokN2")
+	channel = client.channels.get('channel_name')
+	channel.publish('event', 'message')
 
 
 if __name__ == "__main__":
-	# set logging format
-	logging.basicConfig(format='[ %(levelname)s ] ( %(asctime)s ) - %(message)s', level=logging.DEBUG)
-	# create and start server
-	server = Server()
-	server.run()
-
-
-
+	#test()
+	main()
