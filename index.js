@@ -3,8 +3,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-
 const { Pool } = require('pg');
+const { server } = require('./ably-app');
 
 const app = express();
 const port = 3333
@@ -12,18 +12,19 @@ const port = 3333
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-const pool = new Pool({
-    user: 'zulvtfakhqhkof',
-    host: 'ec2-44-197-40-76.compute-1.amazonaws.com',
-    database: 'degfb5n0uhscf9',
-    password: '5504013551534559e218e526643e5368920fed660d599543421444190363997b',
-    port: 5432
-});
+const uri = "postgres://zulvtfakhqhkof:5504013551534559e218e526643e5368920fed660d599543421444190363997b@ec2-44-197-40-76.compute-1.amazonaws.com:5432/degfb5n0uhscf9";
 
-pool.query('SELECT NOW()', (err, res) => {
-    console.log(err, res)
-    // pool.end()
+const pool = new Pool({
+    connectionString: uri,
+    ssl: {
+        rejectUnauthorized: false
+    }
 })
+
+// pool.query('SELECT NOW()', (err, res) => {
+//     console.log(err, res)
+//     // pool.end()
+// })
 
 function generateToken(params = {}) {
     return jwt.sign(params, 'garticopia-backend', {
@@ -73,3 +74,4 @@ app.use(express.json());
 app.listen(port, () => (
     console.log('listening at port', port)
 ));
+

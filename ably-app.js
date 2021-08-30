@@ -38,7 +38,7 @@ var logger = {
 
 
 // dados do servidor
-var server = {
+const server = {
 	connection: new Ably.Realtime('b75WYw.5VOWVQ:zxct1AniXY80WGpd'),
 	rooms: [new Room(0, "Test", "Jobs"), new Room(1, "Test2", "Cars"), new Room(2, "Test3", "Jobs")],	
 }
@@ -90,3 +90,4 @@ server.topics.getRooms.subscribe(function(message) {
 
 });
 
+module.exports = {server}
