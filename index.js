@@ -71,7 +71,7 @@ app.post('/auth', async (req, res) => {//autentica um usuario
 app.use(cors());
 app.use(express.json());
 
-app.listen(port, () => (
+app.listen(process.env.PORT || port, () => (
     console.log('listening at port', port)
 ));
 
