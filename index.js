@@ -36,15 +36,16 @@ app.post('/register', async (req, res) => {//registra um usuario
         const { name, email, password } = req.body;
         const findemail = await pool.query(`SELECT * FROM users WHERE email=$1`, [email])
         if (findemail.rows.length != 0)
-            return res.status(400).send({ error: 'Usuário já cadastrado' })
+            return res.status(400).send({ message: 'User already Registered' })
 
         const salt = crypto.randomBytes(20).toString('hex');
         const passwordHash = crypto.createHash('sha256').update(password + salt).digest('hex');
         await pool.query(`INSERT INTO users (name, email, password, salt) VALUES($1, $2, $3, $4)`, [name, email, passwordHash, salt])
+        logger.info("Register User Request Received");
         return res.status(200).send({ mensagem: `Usuário cadastrado com Sucesso` })
     } catch (err) {
         console.log(err);
-        return res.status(400).send({ error: 'Falha ao registrar usuário' })
+        return res.status(400).send({ message: 'Falha ao registrar usuário' })
     }
 });
 
@@ -54,11 +55,12 @@ app.post('/auth', async (req, res) => {//autentica um usuario
         const user = await pool.query(`SELECT * FROM users WHERE email=($1)`, [email])
 
         if (user.rows.length == 0)
-            return res.status(400).send({ error: 'Usuário não encontrado' })
+            return res.status(400).send({ message: 'Usuário não encontrado' })
         const salt = user.rows[0].salt
         const encrytedPassword = crypto.createHash('sha256').update(password + salt).digest('hex');
         if (user.rows[0].password != encrytedPassword)
-            return res.status(400).send({ error: 'Senha invalida' })
+            return res.status(400).send({ message: 'Senha invalida' })
+        logger.info("Login Request Received");
         res.status(200).send({ userToken: user.rows[0].id })
     } catch (err) {
         console.error(err)
