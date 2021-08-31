@@ -34,7 +34,7 @@ app.get('/', async function (req, res) {
 
 app.post('/register', async (req, res) => {//registra um usuario
     try {
-        const { name, email, password } = req.body;
+        const { userName, userEmail, userPassword } = req.body;
         const findemail = await pool.query(`SELECT * FROM users WHERE email=$1`, [email])
         if (findemail.rows.length != 0)
             return res.status(400).send({ message: 'User already Registered' })
@@ -52,7 +52,7 @@ app.post('/register', async (req, res) => {//registra um usuario
 
 app.post('/auth', async (req, res) => {//autentica um usuario
     try {
-        const { email, password } = req.body;
+        const { userEmail, userPassword } = req.body;
         const user = await pool.query(`SELECT * FROM users WHERE email=($1)`, [email])
 
         if (user.rows.length == 0)
