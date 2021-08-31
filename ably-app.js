@@ -37,7 +37,7 @@ var logger = {
 // dados do servidor
 const server = {
 	connection: new Ably.Realtime('b75WYw.5VOWVQ:zxct1AniXY80WGpd'),
-	rooms: [new Room("FunZone", "Jobs")],	
+	rooms: [],	
 }
 
 // inicializa topicos

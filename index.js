@@ -11,7 +11,6 @@ const port = 3333
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cors());
 
 const uri = "postgres://zulvtfakhqhkof:5504013551534559e218e526643e5368920fed660d599543421444190363997b@ec2-44-197-40-76.compute-1.amazonaws.com:5432/degfb5n0uhscf9";
 
@@ -88,11 +87,10 @@ app.post('/createroom', async (req, res) => {
     } else {
         logger.warning("Create Room Request: User not registered");
         res.status(400).send({ message:'User not registered' });
-    }
-    
+    }  
 });
 
-// entra em uma sala
+// entra numa sala
 app.post('/enterroom', async (req, res) => {
     const userToken = req.body.userToken;
     // if the user is authenticated
@@ -134,9 +132,59 @@ app.post('/enterroom', async (req, res) => {
     } else {
         logger.warning("Enter Room Request: User not registered");
         res.status(400).send({ message:'User not registered' });
-    }
-    
+    }    
 });
+
+// sai de uma sala
+app.post('/exitroom', async (req, res) => {
+    const userToken = req.body.userToken;
+    // if the user is authenticated
+    if (validateToken(userToken)) {
+        // obtem o id da sala
+        const roomID = req.body.roomID;
+        // busca pela sala
+        var room_found = null;
+        for (let i = 0; i < server.rooms.length; i++) {
+            if (server.rooms[i].id == roomID) {
+                room_found = server.rooms[i];
+                break;
+            }
+        }
+
+        if (room_found) {
+            // check if the user is in the room
+            var user_inside = false;
+            for (let j = 0; j < room_found.players.length; j++) {
+                if (room_found.players[j] == userToken) {
+                    user_inside = true;
+                    break;
+                }
+            }
+            if (user_inside) {
+                // remove o id do jogador
+                room_found.players = room_found.players.filter((player_id)=>{userToken != player_id});
+
+                logger.info("Exit Room Request");
+                res.status(200).send({ message:'User removed from the Room' });
+                
+            } else {
+                logger.warning("Exit Room Request: User already inside the Room");
+                res.status(400).send({ message:'User is not inside the Room' });
+            }
+        } else {
+            logger.warning("Exit Room Request: Room not Found");
+            res.status(400).send({ message:'Room not Found' });
+        }
+
+    } else {
+        logger.warning("Exit Room Request: User not registered");
+        res.status(400).send({ message:'User not registered' });
+    }    
+});
+
+
+app.use(cors());
+app.use(express.json());
 
 app.listen(port, () => (
     logger.info('Listening at Port '+port)
