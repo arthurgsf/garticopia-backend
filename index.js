@@ -163,11 +163,11 @@ app.post('/exitroom', async (req, res) => {
             }
             if (user_index > -1) {
                 // remove o id do jogador
-                server.rooms[room_index].players.split(user_index, 1);
+                server.rooms[room_index].players.splice(user_index, 1);
                 logger.info("Exit Room Request: "+roomID);
                 // verifica se a sala esta vazia
                 if (server.rooms[room_index].players.length == 0) {
-                    server.rooms.split(room_index, 1);
+                    server.rooms.splice(room_index, 1);
                     logger.debug("Removing Empty Room: "+room_index);
                 }
                 res.status(200).send({ message:'User removed from the Room' });
