@@ -11,6 +11,7 @@ const port = 3333
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
 const uri = "postgres://zulvtfakhqhkof:5504013551534559e218e526643e5368920fed660d599543421444190363997b@ec2-44-197-40-76.compute-1.amazonaws.com:5432/degfb5n0uhscf9";
 
@@ -91,7 +92,7 @@ app.post('/createroom', async (req, res) => {
     
 });
 
-// cria uma sala
+// entra em uma sala
 app.post('/enterroom', async (req, res) => {
     const userToken = req.body.userToken;
     // if the user is authenticated
@@ -136,10 +137,6 @@ app.post('/enterroom', async (req, res) => {
     }
     
 });
-
-
-app.use(cors());
-app.use(express.json());
 
 app.listen(port, () => (
     logger.info('Listening at Port '+port)
