@@ -10,6 +10,7 @@ const port = 3333
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
 const uri = "postgres://zulvtfakhqhkof:5504013551534559e218e526643e5368920fed660d599543421444190363997b@ec2-44-197-40-76.compute-1.amazonaws.com:5432/degfb5n0uhscf9";
 
@@ -41,7 +42,8 @@ app.post('/register', async (req, res) => {//registra um usuario
         const salt = crypto.randomBytes(20).toString('hex');
         const passwordHash = crypto.createHash('sha256').update(password + salt).digest('hex');
         await pool.query(`INSERT INTO users (name, email, password, salt) VALUES($1, $2, $3, $4)`, [name, email, passwordHash, salt])
-        return res.status(200).send({ mensagem: `Usuário cadastrado com Sucesso` })
+        const user = await (await pool.query(`SELECT * FROM users WHERE email=$1`, [email])).rows[0];
+        return res.status(200).send({ userToken: user.id });
     } catch (err) {
         console.log(err);
         return res.status(400).send({ error: 'Falha ao registrar usuário' })
@@ -185,10 +187,9 @@ app.post('/exitroom', async (req, res) => {
 });
 
 
-app.use(cors());
-app.use(express.json());
 
-app.listen(port, () => (
+
+app.listen(process.env.PORT || port, () => (
     logger.info('Listening at Port '+port)
     //console.log('listening at port', port)
 ));
