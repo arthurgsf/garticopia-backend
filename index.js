@@ -190,8 +190,10 @@ app.post('/exitroom', async (req, res) => {
 app.use(cors());
 app.use(express.json());
 
+
 app.listen(port, () => (
     logger.info('Listening at Port '+port)
     //console.log('listening at port', port)
+
 ));
 
