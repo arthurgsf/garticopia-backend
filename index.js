@@ -82,7 +82,7 @@ app.post('/createroom', async (req, res) => {
         new_room.players.push(userToken);
         server.rooms.push(new_room);
         // log operacao
-        logger.info("Create Room Request: "+roomName+" - "+roomCategory);
+        logger.info("Create Room Request: "+roomName+" - "+roomCategory+" - "+new_room.id);
         // envia mensagem de resposta para o cliente
         res.status(200).send({roomID: new_room.id});
     } else {
@@ -126,7 +126,7 @@ app.post('/enterroom', async (req, res) => {
                 res.status(200).send({ message:'User added to the Room' });
             }
         } else {
-            logger.warning("Enter Room Request: Room not Found");
+            logger.warning("Enter Room Request: Room not Found["+roomID+"]");
             res.status(400).send({ message:'Room not Found' });
         }
 
@@ -177,7 +177,7 @@ app.post('/exitroom', async (req, res) => {
                 res.status(400).send({ message:'User is not inside the Room' });
             }
         } else {
-            logger.warning("Exit Room Request: Room not Found");
+            logger.warning("Exit Room Request: Room not Found ["+roomID+"]");
             res.status(400).send({ message:'Room not Found' });
         }
 
