@@ -35,14 +35,14 @@ app.get('/', async function (req, res) {
 app.post('/register', async (req, res) => {//registra um usuario
     try {
         const { userName, userEmail, userPassword } = req.body;
-        const findemail = await pool.query(`SELECT * FROM users WHERE email=$1`, [email])
+        const findemail = await pool.query(`SELECT * FROM users WHERE email=$1`, [userEmail])
         if (findemail.rows.length != 0)
             return res.status(400).send({ message: 'User already Registered' })
 
         const salt = crypto.randomBytes(20).toString('hex');
-        const passwordHash = crypto.createHash('sha256').update(password + salt).digest('hex');
-        await pool.query(`INSERT INTO users (name, email, password, salt) VALUES($1, $2, $3, $4)`, [name, email, passwordHash, salt])
-        const user = await (await pool.query(`SELECT * FROM users WHERE email=$1`, [email])).rows[0];
+        const passwordHash = crypto.createHash('sha256').update(userPassword + salt).digest('hex');
+        await pool.query(`INSERT INTO users (name, email, password, salt) VALUES($1, $2, $3, $4)`, [userName, userEmail, passwordHash, salt])
+        const user = await (await pool.query(`SELECT * FROM users WHERE email=$1`, [userEmail])).rows[0];
         logger.info("Register User Request: "+userName+" - "+userEmail);
         return res.status(200).send({ userToken: user.id });
     } catch (err) {
@@ -54,12 +54,12 @@ app.post('/register', async (req, res) => {//registra um usuario
 app.post('/auth', async (req, res) => {//autentica um usuario
     try {
         const { userEmail, userPassword } = req.body;
-        const user = await pool.query(`SELECT * FROM users WHERE email=($1)`, [email])
+        const user = await pool.query(`SELECT * FROM users WHERE email=($1)`, [userEmail])
 
         if (user.rows.length == 0)
             return res.status(400).send({ message: 'Usuário não encontrado' })
         const salt = user.rows[0].salt
-        const encrytedPassword = crypto.createHash('sha256').update(password + salt).digest('hex');
+        const encrytedPassword = crypto.createHash('sha256').update(userPassword + salt).digest('hex');
         if (user.rows[0].password != encrytedPassword)
             return res.status(400).send({ message: 'Senha invalida' })
         logger.info("Login Request: "+userEmail);
