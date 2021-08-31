@@ -34,7 +34,7 @@ app.get('/', async function (req, res) {
 
 app.post('/register', async (req, res) => {//registra um usuario
     try {
-        const { name, email, password } = req.body;
+        const { userName, userEmail, userPassword } = req.body;
         const findemail = await pool.query(`SELECT * FROM users WHERE email=$1`, [email])
         if (findemail.rows.length != 0)
             return res.status(400).send({ message: 'User already Registered' })
@@ -43,16 +43,18 @@ app.post('/register', async (req, res) => {//registra um usuario
         const passwordHash = crypto.createHash('sha256').update(password + salt).digest('hex');
         await pool.query(`INSERT INTO users (name, email, password, salt) VALUES($1, $2, $3, $4)`, [name, email, passwordHash, salt])
         const user = await (await pool.query(`SELECT * FROM users WHERE email=$1`, [email])).rows[0];
+        logger.info("Register Request: "+userName+" - "+userEmail);
         return res.status(200).send({ userToken: user.id });
     } catch (err) {
-        console.log(err);
+        logger.erro("Register Request Error: "+err);
         return res.status(400).send({ message: 'Falha ao registrar usuário' })
     }
 });
+   
 
 app.post('/auth', async (req, res) => {//autentica um usuario
     try {
-        const { email, password } = req.body;
+        const { userEmail, userPassword } = req.body;
         const user = await pool.query(`SELECT * FROM users WHERE email=($1)`, [email])
 
         if (user.rows.length == 0)
@@ -61,12 +63,11 @@ app.post('/auth', async (req, res) => {//autentica um usuario
         const encrytedPassword = crypto.createHash('sha256').update(password + salt).digest('hex');
         if (user.rows[0].password != encrytedPassword)
             return res.status(400).send({ message: 'Senha invalida' })
-        logger.info("Login Request Received");
+        logger.info("Register Request: "+userEmail);
         res.status(200).send({ userToken: user.rows[0].id })
     } catch (err) {
         console.error(err)
     }
-
 });
 
 // cria uma sala
@@ -82,7 +83,7 @@ app.post('/createroom', async (req, res) => {
         new_room.players.push(userToken);
         server.rooms.push(new_room);
         // log operacao
-        logger.info("Create Room Request Received");
+        logger.info("Create Room Request: "+roomName+" - "+roomCategory);
         // envia mensagem de resposta para o cliente
         res.status(200).send({roomID: new_room.id});
     } else {
@@ -122,7 +123,7 @@ app.post('/enterroom', async (req, res) => {
             } else {
                 // adiciona o usuario na sala
                 room_found.players.push(userToken);
-                logger.info("Enter Room Request");
+                logger.info("Enter Room Request: "+roomID);
                 res.status(200).send({ message:'User added to the Room' });
             }
         } else {
@@ -144,31 +145,31 @@ app.post('/exitroom', async (req, res) => {
         // obtem o id da sala
         const roomID = req.body.roomID;
         // busca pela sala
-        var room_found = null;
+        var room_index = -1;
         for (let i = 0; i < server.rooms.length; i++) {
             if (server.rooms[i].id == roomID) {
-                room_found = server.rooms[i];
+                room_index = i;
                 break;
             }
         }
 
-        if (room_found) {
+        if (room_index > -1) {
             // check if the user is in the room
-            var user_inside = false;
-            for (let j = 0; j < room_found.players.length; j++) {
-                if (room_found.players[j] == userToken) {
-                    user_inside = true;
+            var user_index = false;
+            for (let j = 0; j < server.rooms[user_index].players.length; j++) {
+                if (server.rooms[user_index].players[j] == userToken) {
+                    user_index = j;
                     break;
                 }
             }
-            if (user_inside) {
+            if (user_index > -1) {
                 // remove o id do jogador
-                room_found.players = room_found.players.filter((player_id)=>{userToken != player_id});
-                logger.info("Exit Room Request");
+                server.rooms[user_index].players.splice(user_index, 1);
+                logger.info("Exit Room Request: "+roomID);
                 // verifica se a sala esta vazia
-                if (room_found.players.length == 0) {
-                    server.rooms = server.rooms.filter((room)=>{room.id != roomID});
-                    logger.debug("Removing Empty Room");
+                if (server.rooms[user_index].players.length == 0) {
+                    server.rooms.splice(room_index, 1);
+                    logger.debug("Removing Empty Room: "+roomID);
                 }
                 res.status(200).send({ message:'User removed from the Room' });
                 
