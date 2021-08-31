@@ -1,16 +1,13 @@
 const Ably = require('ably');
 
 
+var current_room_id=0;
 // Room data
 class Room {
-	id;
-	name;
-	category;
-	players=[];
-
 	// sala possui os campos name, category, players e id 
-	constructor(id, name, category) {
-		this.id = id;
+	constructor(name, category) {
+		this.id = current_room_id;
+		current_room_id++
 		this.name = name;
 		this.category = category;
 		this.players = [];
@@ -40,7 +37,7 @@ var logger = {
 // dados do servidor
 const server = {
 	connection: new Ably.Realtime('b75WYw.5VOWVQ:zxct1AniXY80WGpd'),
-	rooms: [new Room(0, "Test", "Jobs"), new Room(1, "Test2", "Cars"), new Room(2, "Test3", "Jobs")],	
+	rooms: [],	
 }
 
 // inicializa topicos
@@ -90,4 +87,4 @@ server.topics.getRooms.subscribe(function(message) {
 
 });
 
-module.exports = {server}
+module.exports = {server, logger, Room, validateToken}
