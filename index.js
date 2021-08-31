@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Pool } = require('pg');
-const { server } = require('./ably-app');
+const { server, logger, Room, validateToken} = require('./ably-app');
 
 const app = express();
 const port = 3333
@@ -68,10 +68,34 @@ app.post('/auth', async (req, res) => {//autentica um usuario
     })
 });
 
+// cria uma sala
+app.post('/createroom', async (req, res) => {
+    const userToken = req.body.userToken;
+    // if the user is authenticated
+    if (validateToken(userToken)) {
+        // obtem nome e categoria da sala na mensagem
+        const roomName = req.body.roomName;
+        const roomCategory = req.body.roomCategory;
+        // cria uma sala e adiciona nos dados do servidor
+        var new_room = new Room(roomName, roomCategory);
+        server.rooms.push(new_room);
+        // log operacao
+        logger.info("Create Room Request Received");
+        // envia mensagem de resposta para o cliente
+        res.status(200).send({message:'Room Created'});
+    } else {
+        logger.warning("Create Room Request: User not registered");
+        res.status(400).send({ message:'User not registered' });
+    }
+    
+});
+
+
 app.use(cors());
 app.use(express.json());
 
 app.listen(port, () => (
-    console.log('listening at port', port)
+    logger.info('Listening at Port '+port)
+    //console.log('listening at port', port)
 ));
 
