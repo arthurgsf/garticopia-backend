@@ -83,7 +83,7 @@ app.post('/createroom', async (req, res) => {
         // log operacao
         logger.info("Create Room Request Received");
         // envia mensagem de resposta para o cliente
-        res.status(200).send({message:'Room Created'});
+        res.status(200).send({roomID: new_room.id});
     } else {
         logger.warning("Create Room Request: User not registered");
         res.status(400).send({ message:'User not registered' });
@@ -163,8 +163,12 @@ app.post('/exitroom', async (req, res) => {
             if (user_inside) {
                 // remove o id do jogador
                 room_found.players = room_found.players.filter((player_id)=>{userToken != player_id});
-
                 logger.info("Exit Room Request");
+                // verifica se a sala esta vazia
+                if (room_found.players.length == 0) {
+                    server.rooms = server.rooms.filter((room)=>{room.id != roomID});
+                    logger.debug("Removing Empty Room");
+                }
                 res.status(200).send({ message:'User removed from the Room' });
                 
             } else {
