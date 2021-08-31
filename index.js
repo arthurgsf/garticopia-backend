@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Pool } = require('pg');
@@ -21,10 +20,6 @@ const pool = new Pool({
     }
 })
 
-// pool.query('SELECT NOW()', (err, res) => {
-//     console.log(err, res)
-//     // pool.end()
-// })
 
 function generateToken(params = {}) {
     return jwt.sign(params, 'garticopia-backend', {
@@ -39,11 +34,14 @@ app.get('/', async function (req, res) {
 app.post('/register', async (req, res) => {//registra um usuario
     try {
         const { name, email, password } = req.body;
-        if (await pool.query(`SELECT * FROM user WHERE email=${email}`))
+        const findemail = await pool.query(`SELECT * FROM users WHERE email=$1`, [email])
+        if (findemail.rows.length != 0)
             return res.status(400).send({ error: 'Usuário já cadastrado' })
 
-        const user = await client.query('INSERT INTO user(data) VALUES($1)', [{ name: name, email: email, password: password }])
-        return res.status(200).send(`Usuário cadastrado com Sucesso + ${user}`)
+        const salt = crypto.randomBytes(20).toString('hex');
+        const passwordHash = crypto.createHash('sha256').update(password + salt).digest('hex');
+        await pool.query(`INSERT INTO users (name, email, password, salt) VALUES($1, $2, $3, $4)`, [name, email, passwordHash, salt])
+        return res.status(200).send({ mensagem: `Usuário cadastrado com Sucesso` })
     } catch (err) {
         console.log(err);
         return res.status(400).send({ error: 'Falha ao registrar usuário' })
@@ -51,21 +49,21 @@ app.post('/register', async (req, res) => {//registra um usuario
 });
 
 app.post('/auth', async (req, res) => {//autentica um usuario
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
+        const user = await pool.query(`SELECT * FROM users WHERE email=($1)`, [email])
 
-    const user = await pool.query(`SELECT * FROM user WHERE email=${email}`)
+        if (user.rows.length == 0)
+            return res.status(400).send({ error: 'Usuário não encontrado' })
+        const salt = user.rows[0].salt
+        const encrytedPassword = crypto.createHash('sha256').update(password + salt).digest('hex');
+        if (user.rows[0].password != encrytedPassword)
+            return res.status(400).send({ error: 'Senha invalida' })
+        res.status(200).send({ userToken: user.rows[0].id })
+    } catch (err) {
+        console.error(err)
+    }
 
-    if (!user)
-        return res.status(400).send({ error: 'Usuário não encontrado' })
-
-    if (user.senha != password)
-        return res.status(400).send({ error: 'Senha invalida' })
-
-    user.senha = undefined;
-
-    res.send({
-        token: generateToken({ id: user.id }),
-    })
 });
 
 // cria uma sala
