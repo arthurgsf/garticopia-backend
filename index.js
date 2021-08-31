@@ -78,6 +78,7 @@ app.post('/createroom', async (req, res) => {
         const roomCategory = req.body.roomCategory;
         // cria uma sala e adiciona nos dados do servidor
         var new_room = new Room(roomName, roomCategory);
+        new_room.players.push(userToken);
         server.rooms.push(new_room);
         // log operacao
         logger.info("Create Room Request Received");
@@ -85,6 +86,52 @@ app.post('/createroom', async (req, res) => {
         res.status(200).send({message:'Room Created'});
     } else {
         logger.warning("Create Room Request: User not registered");
+        res.status(400).send({ message:'User not registered' });
+    }
+    
+});
+
+// cria uma sala
+app.post('/enterroom', async (req, res) => {
+    const userToken = req.body.userToken;
+    // if the user is authenticated
+    if (validateToken(userToken)) {
+        // obtem o id da sala
+        const roomID = req.body.roomID;
+        // busca pela sala
+        var room_found = null;
+        for (let i = 0; i < server.rooms.length; i++) {
+            if (server.rooms[i].id == roomID) {
+                room_found = server.rooms[i];
+                break;
+            }
+        }
+
+        if (room_found) {
+            // check if the user is already inside
+            var user_inside = false;
+            for (let j = 0; j < room_found.players.length; j++) {
+                if (room_found.players[j] == userToken) {
+                    user_inside = true;
+                    break;
+                }
+            }
+            if (user_inside) {
+                logger.warning("Enter Room Request: User already inside the Room");
+                res.status(400).send({ message:'User already inside the Room' });
+            } else {
+                // adiciona o usuario na sala
+                room_found.players.push(userToken);
+                logger.info("Enter Room Request");
+                res.status(200).send({ message:'User added to the Room' });
+            }
+        } else {
+            logger.warning("Enter Room Request: Room not Found");
+            res.status(400).send({ message:'Room not Found' });
+        }
+
+    } else {
+        logger.warning("Enter Room Request: User not registered");
         res.status(400).send({ message:'User not registered' });
     }
     
