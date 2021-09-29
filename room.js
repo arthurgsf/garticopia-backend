@@ -72,7 +72,7 @@ class Room {
 		// publica mudanca de status
 		this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
 		// set timer para voltar par initial
-		this.timer = setTimeout(this.initial_stage.bind(this), 1000*5);
+		this.timer = setTimeout(this.initial_stage.bind(this), 1000*10);
 		
 	}
 
@@ -102,7 +102,7 @@ class Room {
 			// seleciona palavra para desenhar
 			this.currentDrawing = this.generate_draw();
 			// prepara timer para drawing stage function em 5 segundos
-			this.timer = setTimeout(this.drawing_stage.bind(this), 1000*5);
+			this.timer = setTimeout(this.drawing_stage.bind(this), 1000*10);
 			logger.debug("Room("+this.id+"): Interval Stage (Next Drawer: "+this.currentDrawer+", Next Drawing: "+this.currentDrawing+")");
 			// publica mudanca de status
 			this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
@@ -115,7 +115,7 @@ class Room {
 		// atualiza status
 		this.stage = "drawing";
 		// prepara timer para interval stage function
-		this.timer = setTimeout(this.interval_stage.bind(this), 1000*10);
+		this.timer = setTimeout(this.interval_stage.bind(this), 1000*20);
 		// publica mudanca de status
 		this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
 	}
@@ -230,11 +230,11 @@ class Room {
 	remove_player(player_id) {
 		// remove jogador da sala e retorna os seus dados
 		for (let i = 0; i < this.players.length; i++) {
-            if (this.players[i] == player_id) {
+            if (this.players[i].id == player_id) {
             	// obtem o jogador na posicao i, e remove a posicao i do vetor
                 var player = this.players[i];
 				logger.debug("Removing player with id "+player_id+" from Room <"+this.id+">");
-                this.players.splice(player_index, 1);
+                this.players.splice(i, 1);
                 // publish mudanca de status
                 this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
 				logger.debug("Publishing at /rooms/"+this.id+": "+JSON.stringify(this.get_status()));

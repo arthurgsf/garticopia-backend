@@ -108,7 +108,8 @@ router.post('/exitroom', async (req, res) => {
 
         // verifica se o jogador foi realmente removido 
         if (user == null) {
-            logger.warning("Exit Room Request: User is not inside the Room");
+            // logger.warning("Exit Room Request: User is not inside the Room");
+            logger.warning("Exit Room Request Error: room("+roomID+") by player("+userID+")");
             res.status(400).send({ message:'User is not inside the Room' });
 
         } else {

@@ -6,8 +6,8 @@ const { logger } = require('./logger');
 
 // dados do servidor
 const server = {
-	// local API b75WYw.5VOWVQ:zxct1AniXY80WGpd
-	connection: new Ably.Realtime('f3tY9A.5_05yA:RGdvuS_TneYKSUG5'),
+	// local API f3tY9A.5_05yA:RGdvuS_TneYKSUG5
+	connection: new Ably.Realtime('b75WYw.5VOWVQ:zxct1AniXY80WGpd'),
 	// TODO implementar lista de salas como arvore binaria pelo ID
 	rooms: [],	
 }
