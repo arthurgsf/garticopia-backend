@@ -254,7 +254,8 @@ function getTimeLeft(timer) {
 	}
 	try {
 		let sum = timer._idleStart+timer._idleTimeout;
-		let timeLeft = Math.ceil((sum-Date.now()) / 1);
+		let currentTime = process.hrtime()[0]*1000
+		let timeLeft = Math.ceil((sum-currentTime) / 1);
 		console.log("getTimeLeft: "+timeLeft);
 		return timeLeft;
 	} catch (error) {
