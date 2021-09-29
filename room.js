@@ -253,13 +253,10 @@ function getTimeLeft(timer) {
 		return -1;
 	}
 	try {
-		console.log(timer._idleStart);
-		console.log(timer._idleTimeout);
 		let sum = timer._idleStart+timer._idleTimeout;
-		console.log(sum);
-		console.log(Date.now());
-		console.log(sum-Date.now());
-		Math.ceil((sum-Date.now()) / 1);
+		let timeLeft = Math.ceil((sum-Date.now()) / 1);
+		console.log("getTimeLeft: "+timeLeft);
+		return timeLeft;
 	} catch (error) {
 		logger.warning("getTimeLeft Error");
 		console.log(error);
