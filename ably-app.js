@@ -39,7 +39,7 @@ server.publishRooms = () => {
 	let response = {
 		rooms: server.rooms.map(room => ({"roomID": room.id,"roomName": room.name,"roomPlayers": room.players.length})).filter(room=>room.roomPlayers < 10)
 	}
-	logger.info(" Publishing Open Rooms to /rooms")
+	logger.info(" Publishing Open Rooms to /rooms: "+JSON.stringfy(response));
 	// publica salas abertas no topico openRooms
 	server.topics.rooms.publish('/rooms', JSON.stringify(response), function(err) {
 		if (err) {
