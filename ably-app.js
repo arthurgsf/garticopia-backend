@@ -6,16 +6,15 @@ const { logger } = require('./logger');
 
 // dados do servidor
 const server = {
-	// local API f3tY9A.5_05yA:RGdvuS_TneYKSUG5
-	connection: new Ably.Realtime('b75WYw.5VOWVQ:zxct1AniXY80WGpd'),
+	// local API b75WYw.5VOWVQ:zxct1AniXY80WGpd
+	connection: new Ably.Realtime('f3tY9A.5_05yA:RGdvuS_TneYKSUG5'),
 	// TODO implementar lista de salas como arvore binaria pelo ID
-	rooms: [],	
+	rooms: [],
 }
 
 
 // inicializa topicos
 server.topics = {
-	rooms: server.connection.channels.get("rooms"),
 	rooms: server.connection.channels.get("/rooms"),
 }
 
@@ -35,6 +34,22 @@ server.connection.connection.on('disconnected', function() {
 server.connection.connection.on('closed', function() {
 	logger.info('Connection to Broker Closed');
 });
+
+server.publishRooms = () => {
+	let response = {
+		rooms: server.rooms.map(room => ({"roomID": room.id,"roomName": room.name,"roomPlayers": room.players.length})).filter(room=>room.roomPlayers < 10)
+	}
+	logger.info(" Publishing Open Rooms to /rooms")
+	// publica salas abertas no topico openRooms
+	server.topics.rooms.publish('/rooms', JSON.stringify(response), function(err) {
+		if (err) {
+			logger.error('Could not publish Open Rooms');
+			console.log(err);
+		} else {
+			logger.debug('Open Rooms published');
+		}
+	});
+}
 
 
 module.exports = {server, logger}

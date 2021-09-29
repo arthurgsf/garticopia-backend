@@ -23,8 +23,10 @@ router.post('/createroom', async (req, res) => {
     server.rooms.push(new_room);
     // log operacao
     logger.info("Create Room Request: "+roomName+" - "+roomCategory+" - "+new_room.id);
+    // publica novas salas
+    server.publishRooms();
     // envia mensagem de resposta para o cliente
-    res.status(200).send({roomStatus: new_room.get_status()});  
+    res.status(200).send({roomStatus: new_room.get_status()});
 });
 
 router.post('/startroom', async (req, res) => {
@@ -79,13 +81,15 @@ router.post('/enterroom', async (req, res) => {
             var new_player = new Player(userID, userName);
             room_found.add_player(new_player);
             logger.info("Enter Room Request: room("+roomID+") by player("+userID+")");
+            // publica novas salas
+            server.publishRooms();
             res.status(200).send({roomStatus: room_found.get_status()});
         }
     } else {
         logger.warning("Enter Room Request: Room not Found["+roomID+"]");
         res.status(400).send({ message:'Room not Found' });
     }
-   
+
 });
 
 // sai de uma sala
@@ -106,10 +110,9 @@ router.post('/exitroom', async (req, res) => {
         // remove the user
         var user = server.rooms[room_index].remove_player(userID);
 
-        // verifica se o jogador foi realmente removido 
+        // verifica se o jogador foi realmente removido
         if (user == null) {
-            // logger.warning("Exit Room Request: User is not inside the Room");
-            logger.warning("Exit Room Request Error: room("+roomID+") by player("+userID+")");
+            logger.warning("Exit Room Request: User is not inside the Room");
             res.status(400).send({ message:'User is not inside the Room' });
 
         } else {
@@ -119,6 +122,8 @@ router.post('/exitroom', async (req, res) => {
                 server.rooms.splice(room_index, 1);
                 logger.debug("Removing Empty Room: "+room_index);
             }
+            // publica novas salas
+            server.publishRooms();
             // envia resposta
             res.status(200).send({ message:'User removed from the Room' });
         }
