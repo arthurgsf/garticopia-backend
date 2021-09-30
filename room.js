@@ -1,5 +1,6 @@
 const { logger } = require('./logger');
 const autoBind = require('auto-bind');
+const { Pool } = require('pg');
 
 // track room id incremenet
 var current_room_id=0;
@@ -159,9 +160,60 @@ class Room {
 			
 	}
 
+
+
 	generate_draw() {
-		// gera uma nova palavra para ser desenhada
-		return this.category
+		function getRandomInt(min, max) {
+			min = Math.ceil(min);
+			max = Math.floor(max);
+			return Math.floor(Math.random() * (max - min)) + min;
+		}
+		
+		words = {
+			'Esportes':[
+				'MMA',
+				'Boxe',
+				'Fórmula-1',
+				'Futebol Americano',
+				'Golfe',
+				'Vôlei',
+				'Hóquei',
+				'Rugby',
+				'Atletismo',
+				'Tênis',
+				'Basquete',
+				'Beisebol',
+				'Airsoft',
+			],
+			'Comidas':[
+				'Pão de Queijo',
+				'Coxinha',
+				'Acarajé',
+				'Feijão',
+				'Farofa',
+				'Churrasco',
+				'Açaí',
+				'Brigadeiro',
+				'Paçoca',
+				'Sushi',
+			],
+			'Verbos':[
+				'Andar',
+				'Correr',
+				'Comer',
+				'Nadar',
+				'Espiar',
+				'Espirrar',
+				'Jogar',
+				'Brincar',
+				'Banhar',
+				'Lavar',
+				'Coçar',
+			]
+
+		}
+
+		return words[this.category][getRandomInt(0, words[this.category].length)]
 	}
 
 	generate_drawer() {
