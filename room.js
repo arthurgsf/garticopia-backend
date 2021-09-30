@@ -174,7 +174,7 @@ class Room {
 
 	generate_drawer() {
 		// caso a sala nao tenha sido dstruida ainda na thread do server
-		if (this.player.length == 0) {
+		if (this.players.length == 0) {
 			return -1;
 		}
 		// obtem usuarios que ainda nao desenharam
@@ -185,7 +185,7 @@ class Room {
 			// reseta lista de jogadores que ja desenharam e torna possivel desenhistar para todos os jogadores
 			this.alreadyDraw = [];
 			// caso a sala nao tenha sido dstruida ainda na thread do server
-			if (this.player.length == 0) {
+			if (this.players.length == 0) {
 				return -1;
 			}
 			possibleDrawers = this.players;
