@@ -25,8 +25,7 @@ class Room {
 		this.stage = "initial"
 		this.currentDrawer = -1;
 		this.currentDrawing = null;
-		this.canvasModifications = 0;
-
+		
 		// create room topics
 		this.topics = {
 			status: server.connection.channels.get("/rooms/"+this.id),
@@ -42,7 +41,7 @@ class Room {
 		logger.debug("Room("+this.id+"-"+this.name+") Starting");
 		// subscribe nos topicos necessarios
 		this.topics.chat.subscribe(this.validate_guess.bind(this));
-		this.topics.canvas.subscribe(this.increaseCanvasModifications.bind(this));
+		this.topics.canvas.subscribe(this.echo_modification.bind(this));
 		// call stage right at start
 		this.timer = setImmediate(this.interval_stage.bind(this));
 	}
@@ -63,15 +62,6 @@ class Room {
 		// publica mudanca de status
 		this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
 		
-	}
-
-	increaseCanvasModifications() {
-		if (this.stage == "interval") {
-			logger.debug("Room("+this.id+"-"+this.name+"): Canvas Modification")
-			this.canvasModifications += 1;
-		} else {
-			logger.warning("Room("+this.id+"-"+this.name+"): Canvas Modification on Invalid Stage")
-		}
 	}
 
 	winners_stage() {
@@ -103,7 +93,6 @@ class Room {
 			}
 		}
 		// reseta jogadores que acertaram e modificacoes do canvas
-		this.canvasModifications = 0;
 		this.alreadyGuessed = [];
 		// verifica se a pontuacao maxima foi adquirida
 		if (this.maxPoinsAchieved(20)) {
@@ -133,6 +122,10 @@ class Room {
 		this.timer = setTimeout(this.interval_stage.bind(this), 1000*20);
 		// publica mudanca de status
 		this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
+	}
+
+	echo_modification(message) {
+		logger.debug("Room("+this.id+"-"+this.name+"): Canvas Modification");
 	}
 
 	validate_guess(message) {
