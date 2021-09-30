@@ -95,7 +95,7 @@ class Room {
 		// reseta jogadores que acertaram e modificacoes do canvas
 		this.alreadyGuessed = [];
 		// verifica se a pontuacao maxima foi adquirida
-		if (this.maxPoinsAchieved(20)) {
+		if (this.maxPoinsAchieved(12*this.player.length)) {
 			// imediatamente muda para winner stage
 			this.timer = setImmediate(this.winners_stage.bind(this));
 
@@ -140,7 +140,7 @@ class Room {
 		if ((messageDecoded.guess == this.currentDrawing) && (this.stage == "drawing") && (messageDecoded.userID != this.currentDrawer) && (!this.alreadyGuessed.includes(messageDecoded.userID)) && (playerGuessingIndex > -1)) {
 			logger.debug("Room("+this.id+"-"+this.name+"): User("+messageDecoded.userID+") Guessed Correctly");
 			// atualiza pontuacoes
-			this.players[playerGuessingIndex].points += 9 - this.alreadyGuessed.length;
+			this.players[playerGuessingIndex].points += this.players.length - this.alreadyGuessed.length;
 			// adiciona player para a lista de jogadores que ja acertaram
 			this.alreadyGuessed.push( this.players[playerGuessingIndex].id );
 			// publica mudanca de status
@@ -173,6 +173,10 @@ class Room {
 	}
 
 	generate_drawer() {
+		// caso a sala nao tenha sido dstruida ainda na thread do server
+		if (this.player.length == 0) {
+			return -1;
+		}
 		// obtem usuarios que ainda nao desenharam
 		let possibleDrawers = this.players.filter(player => !(this.alreadyDraw.includes(player.id)) );
 		// se nao tiver mais jogadores disponiveis para desenhar
@@ -180,10 +184,17 @@ class Room {
 			logger.debug("Reseting Possible Drawers");
 			// reseta lista de jogadores que ja desenharam e torna possivel desenhistar para todos os jogadores
 			this.alreadyDraw = [];
+			// caso a sala nao tenha sido dstruida ainda na thread do server
+			if (this.player.length == 0) {
+				return -1;
+			}
 			possibleDrawers = this.players;
 		}
 		// seleciona um jogador aleatorio
-		return possibleDrawers[Math.floor(Math.random() * possibleDrawers.length)].id;
+		let selected_player = possibleDrawers[Math.floor(Math.random() * possibleDrawers.length)];
+		// se for undefined
+		return selected_player.id;
+
 	}
 
 	get_players_status() {
@@ -253,6 +264,16 @@ class Room {
         }
         // returona null se nao achou o jogador
         return null;
+	}
+
+	stop() {
+		logger.info("Room("+this.id+"-"+this.name+"): Stopping");
+		this.initial_stage();	        
+		try {
+			clearTimeout(this.timer);
+		} catch (err) {
+			logger.error(err);
+		}
 	}
 }
 
