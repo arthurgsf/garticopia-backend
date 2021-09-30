@@ -66,8 +66,12 @@ class Room {
 	}
 
 	increaseCanvasModifications() {
-		logger.debug("Room("+this.name+"): Canvas Modification")
-		this.canvasModifications += 1;
+		if (this.stage == "interval";) {
+			logger.debug("Room("+this.id+"-"+this.name+"): Canvas Modification")
+			this.canvasModifications += 1;
+		} else {
+			logger.warning("Room("+this.id+"-"+this.name+"): Canvas Modification on Invalid Stage")
+		}
 	}
 
 	winners_stage() {
