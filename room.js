@@ -39,7 +39,7 @@ class Room {
 	}
 
 	start() {
-		logger.debug("Room("+this.id+") Starting");
+		logger.debug("Room("+this.id+"-"+this.name+") Starting");
 		// subscribe nos topicos necessarios
 		this.topics.chat.subscribe(this.validate_guess.bind(this));
 		this.topics.canvas.subscribe(this.increaseCanvasModifications.bind(this));
@@ -48,7 +48,7 @@ class Room {
 	}
 
 	initial_stage() {
-		logger.debug("Room("+this.id+") Initial Stage");
+		logger.debug("Room("+this.id+"-"+this.name+") Initial Stage");
 		// atualiza status
 		this.stage = "initial";
 		// reseta valores
@@ -66,11 +66,12 @@ class Room {
 	}
 
 	increaseCanvasModifications() {
+		logger.debug("Room("+this.name+"): Canvas Modification")
 		this.canvasModifications += 1;
 	}
 
 	winners_stage() {
-		logger.debug("Room("+this.id+") Winner Stage");
+		logger.debug("Room("+this.id+"-"+this.name+") Winner Stage");
 		// atualiza status
 		this.stage = "winners";
 		this.currentDrawer = -1;
@@ -113,7 +114,7 @@ class Room {
 			this.currentDrawing = this.generate_draw();
 			// prepara timer para drawing stage function em 5 segundos
 			this.timer = setTimeout(this.drawing_stage.bind(this), 1000*10);
-			logger.debug("Room("+this.id+"): Interval Stage (Next Drawer: "+this.currentDrawer+", Next Drawing: "+this.currentDrawing+")");
+			logger.debug("Room("+this.id+"-"+this.name+"): Interval Stage (Next Drawer: "+this.currentDrawer+", Next Drawing: "+this.currentDrawing+")");
 			// publica mudanca de status
 			this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
 		}
@@ -121,7 +122,7 @@ class Room {
 	}
 
 	drawing_stage() {
-		logger.debug("Room("+this.id+"): Drawing Stage");
+		logger.debug("Room("+this.id+"-"+this.name+"): Drawing Stage");
 		// atualiza status
 		this.stage = "drawing";
 		// prepara timer para interval stage function
@@ -140,7 +141,7 @@ class Room {
 		let playerGuessingIndex = this.find_player_index(messageDecoded.userID);
 		// verifica se o chute esta correto
 		if ((messageDecoded.guess == this.currentDrawing) && (this.stage == "drawing") && (messageDecoded.userID != this.currentDrawer) && (!this.alreadyGuessed.includes(messageDecoded.userID)) && (playerGuessingIndex > -1)) {
-			logger.debug("Room("+this.id+"): User("+messageDecoded.userID+") Guessed Correctly");
+			logger.debug("Room("+this.id+"-"+this.name+"): User("+messageDecoded.userID+") Guessed Correctly");
 			// atualiza pontuacoes
 			this.players[playerGuessingIndex].points += 9 - this.alreadyGuessed.length;
 			// adiciona player para a lista de jogadores que ja acertaram
@@ -150,14 +151,14 @@ class Room {
 			// adiciona extra info na resposta
 			chatResposnse.info = "Acertou";
 		} else {
-			logger.debug("Room("+this.id+"): User("+messageDecoded.userID+") Guessed Wrong");
+			logger.debug("Room("+this.id+"-"+this.name+"): User("+messageDecoded.userID+") Guessed Wrong");
 			// adiciona extra info na resposta
 			chatResposnse.info = "Errou";
 		}
 		// verifica se mais alguem precisa acertar
 		if (this.alreadyGuessed.length == (this.players.length-1) ) {
 			// cancela timer para mudar para estado de intervalo
-			logger.debug("Room("+this.id+"): Everyone already guessed");
+			logger.debug("Room("+this.id+"-"+this.name+"): Everyone already guessed");
 			// clear old timer
 			clearTimeout(this.timer);
 			// go to interval stage
