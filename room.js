@@ -177,7 +177,7 @@ class Room {
 			return Math.floor(Math.random() * (max - min)) + min;
 		}
 		
-		words = {
+		let words = {
 			'Esportes':[
 				'MMA',
 				'Boxe',
