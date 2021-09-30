@@ -95,7 +95,7 @@ class Room {
 		// reseta jogadores que acertaram e modificacoes do canvas
 		this.alreadyGuessed = [];
 		// verifica se a pontuacao maxima foi adquirida
-		if (this.maxPoinsAchieved(12*this.player.length)) {
+		if (this.maxPoinsAchieved(12*this.players.length)) {
 			// imediatamente muda para winner stage
 			this.timer = setImmediate(this.winners_stage.bind(this));
 
