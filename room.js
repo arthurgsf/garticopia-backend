@@ -25,6 +25,7 @@ class Room {
 		this.stage = "initial"
 		this.currentDrawer = -1;
 		this.currentDrawing = null;
+		this.canvasModifications = 0;
 
 		// create room topics
 		this.topics = {
@@ -41,6 +42,7 @@ class Room {
 		logger.debug("Room("+this.id+") Starting");
 		// subscribe nos topicos necessarios
 		this.topics.chat.subscribe(this.validate_guess.bind(this));
+		this.topics.canvas.subscribe(this.increaseCanvasModifications.bind(this));
 		// call stage right at start
 		this.timer = setImmediate(this.interval_stage.bind(this));
 	}
@@ -63,12 +65,19 @@ class Room {
 		
 	}
 
+	increaseCanvasModifications() {
+		this.canvasModifications += 1;
+	}
+
 	winners_stage() {
 		logger.debug("Room("+this.id+") Winner Stage");
 		// atualiza status
 		this.stage = "winners";
 		this.currentDrawer = -1;
 		this.currentDrawing = null;
+		// unsubscribe dos topicos do ciclo do jogo
+		this.topics.chat.unsubscribe();
+		this.topics.canvas.unsubscribe();
 		// publica mudanca de status
 		this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
 		// set timer para voltar par initial
@@ -88,7 +97,8 @@ class Room {
 				playerDrawer.points += 1 + this.alreadyGuessed.length;
 			}
 		}
-		// reseta jogadores que acertaram
+		// reseta jogadores que acertaram e modificacoes do canvas
+		this.canvasModifications = 0;
 		this.alreadyGuessed = [];
 		// verifica se a pontuacao maxima foi adquirida
 		if (this.maxPoinsAchieved(20)) {
@@ -169,6 +179,7 @@ class Room {
 		let possibleDrawers = this.players.filter(player => !(this.alreadyDraw.includes(player.id)) );
 		// se nao tiver mais jogadores disponiveis para desenhar
 		if (possibleDrawers.length == 0) {
+			logger.debug("Reseting Possible Drawers");
 			// reseta lista de jogadores que ja desenharam e torna possivel desenhistar para todos os jogadores
 			this.alreadyDraw = [];
 			possibleDrawers = this.players;
@@ -185,7 +196,7 @@ class Room {
 	get_status() {
 		// obtem status atual da sala
 		var players = this.get_players_status();
-		return {ID: this.id, name: this.name, category: this.category, stage: this.stage, alreadyGuessed: this.alreadyGuessed, timeLeft: getTimeLeft(this.timer), currentDrawer: this.currentDrawer, currentDrawing: this.currentDrawing, players: players};
+		return {ID: this.id, name: this.name, category: this.category, stage: this.stage, alreadyGuessed: this.alreadyGuessed, timeLeft: getTimeLeft(this.timer), currentDrawer: this.currentDrawer, currentDrawing: this.currentDrawing, players: players, canvasModifications: this.canvasModifications};
 	}
 
 	add_player(player) {
