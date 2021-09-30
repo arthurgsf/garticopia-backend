@@ -66,7 +66,7 @@ class Room {
 	}
 
 	increaseCanvasModifications() {
-		if (this.stage == "interval";) {
+		if (this.stage == "interval") {
 			logger.debug("Room("+this.id+"-"+this.name+"): Canvas Modification")
 			this.canvasModifications += 1;
 		} else {
