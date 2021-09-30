@@ -120,7 +120,7 @@ class Room {
 		// atualiza status
 		this.stage = "drawing";
 		// prepara timer para interval stage function
-		this.timer = setTimeout(this.interval_stage.bind(this), 1000*20);
+		this.timer = setTimeout(this.interval_stage.bind(this), 1000*120);
 		// publica mudanca de status
 		this.topics.status.publish(""+this.id, JSON.stringify(this.get_status()));
 	}
